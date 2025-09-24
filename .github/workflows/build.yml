@@ -30,12 +30,17 @@ jobs:
 
     - name: Runs all the stages in the shell
       run: |
-        mkdir $PWD/ps3dev
+        mkdir -p $PWD/ps3dev
         export PS3DEV=$PWD/ps3dev
         export PSL1GHT=$PS3DEV
-        export PATH=$PATH:$PS3DEV/bin
-        export PATH=$PATH:$PS3DEV/ppu/bin
-        export PATH=$PATH:$PS3DEV/spu/bin
+        export PATH=$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin:$PATH
+        echo "PS3DEV=$PS3DEV" >> $GITHUB_ENV
+        echo "PSL1GHT=$PSL1GHT" >> $GITHUB_ENV
+        echo "PATH=$PS3DEV/bin:$PS3DEV/ppu/bin:$PS3DEV/spu/bin:$PATH" >> $GITHUB_ENV
+
+    - name: Build PS3 Toolchain
+      run: |
+        set -e
         ./toolchain.sh
 
     - name: Get short SHA
@@ -56,17 +61,19 @@ jobs:
       run: echo "::set-output name=date::$(date +'%Y-%m-%d')"
 
     - name: Create Release
+      if: success()
       id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{matrix.os}}-${{ steps.slug.outputs.sha8 }}
-        release_name: ps3dev ${{matrix.os}} (${{steps.date.outputs.date}})
+        tag_name: ${{matrix.os}}-${{ env.sha8 }}
+        release_name: ps3dev ${{matrix.os}} (${{ env.date }})
         draft: false
         prerelease: false
 
     - name: Upload Release Asset
+      if: success()
       id: upload-release-asset 
       uses: actions/upload-release-asset@v1
       env:
@@ -74,5 +81,5 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./ps3dev.tar.gz
-        asset_name: ps3dev-${{matrix.os}}-${{steps.date.outputs.date}}.tar.gz
+        asset_name: ps3dev-${{matrix.os}}-${{ env.date }}.tar.gz
         asset_content_type: application/gzip
